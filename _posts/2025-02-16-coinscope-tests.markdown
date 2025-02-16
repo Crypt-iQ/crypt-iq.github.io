@@ -25,7 +25,9 @@ Core only rolls over about once a day.
 a spike at around 30 seconds, meaning that ~800 nodes were disconnecting us after 30 seconds. This
 graph shows the spike at 30 seconds for nodes that accept >= 125 inbound connections (in addition to
 the peers that they already have):
+
 ![alt text](degree-125-time-hist-success-errs.png "Title")
+
 - Further inspection revealed that the nodes spam INVs, use `/Satoshi:27.0.0/` as the user agent, use
 `SFNodeNetwork|SFNodeBloom|SFNodeNetworkLimited|0x800` as service flags, and don't participate
 in TX relay. This last bit I discovered by sending transactions only to these nodes. For these
@@ -95,7 +97,7 @@ probability.
 ### Future Directions
 - With the influential mining set, we can analyze them further by sending these influential nodes
 transactions and analyzing merkle branches from stratum jobs to see which mining pools start
-to include the transaction (assuming we are able to generate a similar merkle branch ourself).
+to include the transaction (assuming we are able to generate a similar merkle branch ourselves).
 - Narrow down the list of 200 using additional logs or come up with a highly influential set that
 is as small as possible.
 - Include more than just IPv4 and IPV6 addresses in case non-clearnet nodes are influential.

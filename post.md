@@ -53,7 +53,7 @@ these out gives the following exponential distribution:
 
 ![alt text](total_wins_hist_cleaned.png "Title")
 
-From here, the win list needed to be validated to see where the top nodes were indeed influential
+From here, the win list needed to be validated to see whether the top nodes were indeed influential
 nodes. To do this, I followed the Influence Validation (IV) algorithm in the paper. In this
 algorithm, the influential set is treated as a singleton set and is given one conflict transaction
 while the rest of the network is given a different conflict transaction. I defined the influential

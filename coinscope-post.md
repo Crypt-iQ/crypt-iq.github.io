@@ -68,11 +68,13 @@ In 20 trials, the top 200 influential set won 8 times, meaning this set represen
 network's hashrate.
 
 In addition to the overall win list, I had also created win lists for the 7 miners listed earlier.
-These lists contained the influential nodes behind individual mining pools. I noticed that nodes on
-this list were not in the top-200 but were influential in their own right. For comparison against the
-original top-200 list, I created a new top-200 list by taking the top 25 addresses from each of the
-7 miner win lists. The remaining 25 were filled in from the original win list starting from the top,
-taking care to ensure no duplicates. The win distribution in this list was noticeably different:
+These lists contained the influential nodes behind individual mining pools. I noticed that many nodes
+on this list were not in the top-200 but were influential in their own right. I believe that some of
+the Foundry, AntPool, and ViaBTC nodes were over-represented in the influential set when there are other
+pools to consider. For comparison against the original top-200 list, I created a new top-200 list by
+taking the top 25 addresses from each of the 7 miner win lists. The remaining 25 were filled in from the
+original win list starting from the top, taking care to ensure no duplicates. The win distribution in
+this list was noticeably different:
 
 ![alt text](top-200-miners-win-dist.png "Title")
 
@@ -91,13 +93,12 @@ unintentionally partitioned 91% of the time goes to show that partitioning can w
 probability.
 
 ### Future Directions
-- With the influential mining set, we can analyze them further by sending these influential nodes
-transactions and analyzing merkle branches from stratum jobs to see which mining pools start
-to include the transaction (assuming we are able to generate a similar merkle branch ourself).
+- We can analyze the influential set further by sending transactions to these nodes and
+checking merkle branches from stratum jobs to see which mining pools start to include the
+transaction (assuming we are able to generate a similar merkle branch ourselves).
 - Narrow down the list of 200 using additional logs or come up with a highly influential set that
 is as small as possible.
 - Include more than just IPv4 and IPV6 addresses in case non-clearnet nodes are influential.
-- Clean up and open source the light client I made for these experiments.
-- Share the data logs I have in case somebody wants to analyze further.
+- Clean up and share the light client code.
 
-[1] CoinScope - https://allquantor.at/blockchainbib/pdf/miller2015discovering.pdf
+[1] CoinScope - https://www.cs.umd.edu/projects/coinscope/coinscope.pdf

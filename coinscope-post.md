@@ -1,4 +1,4 @@
-## Mempool Partitioning and Identifying Mining Nodes.
+## Mempool Partitioning and Identifying Mining Nodes
 
 ### Motivation
 I wanted to see how difficult it would be to practically identify mining nodes (or mining-adjacent)

@@ -41,7 +41,7 @@ transactions. Because of changes to Core, I don't believe that InvBlock is appli
 than 500 trials with an `M=100`, I chose to do 100 trials with `M=20`.
 - Every test iteration, I also looked to see which conflict transaction mempool.space had. Since I
 tagged the conflict transactions by sequence number `nSequence = <set_idx> + (1 << 31)`, I didn't have
-to compare transaction hashes and could instead note down the `set_idx` from the interval `[0, M)`.
+to compare transaction hashes and could instead note down the `set_idx` from the interval `[0, 19]`.
 
 ### Results
 In the 100 tests, Foundry mined 34 of the conflicts, AntPool mined 15, ViaBTC mined 12, MARA

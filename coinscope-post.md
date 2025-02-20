@@ -51,7 +51,7 @@ Plotting the distribution of win scores from the 100 trials gives the following 
 ![alt text](total_wins_hist_unsuccessful_clean.png "Title")
 
 The majority of these peers, however, did not complete the version-verack handshake. Filtering
-these out gives the following exponential distribution:
+these out gives the following kind-of exponential distribution:
 
 ![alt text](total_wins_hist_cleaned.png "Title")
 
@@ -65,7 +65,8 @@ like this and is the tail of the original win distribution:
 ![alt text](top200-win-dist.png "Title")
 
 In 20 trials, the top 200 influential set won 8 times, meaning this set represented about 40% of the
-network's hashrate.
+network's hashrate. I wasn't super satisfied with this 40% win-rate since the paper was able to achieve
+higher win-rate. I probably should have run more trials here.
 
 In addition to the overall win list, I had also created win lists for the 7 miners listed earlier.
 These lists contained the influential nodes behind individual mining pools. I noticed that many nodes

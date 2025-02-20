@@ -47,7 +47,7 @@ since they were repeatedly getting conflicting transactions from what was mined.
 In the 100 tests, Foundry mined 34 of the conflicts, AntPool mined 15, ViaBTC mined 12, MARA
 mined 8, F2Pool mined 7, SECPOOL mined 6, BraiinsPool mined 5, and the rest were a collection of
 different, smaller miners. These 7 top miners account for roughly 87% of the network's hashrate.
-mempool.space had a conflicting transaction from what was mined 91/100 times. In other words, the
+mempool.space had a conflicting transaction from what was mined in 91 trials. In other words, the
 mempool.space node(s) was unintentionally partitioned 91% of the time.
 
 Plotting the distribution of win scores from the 100 trials gives the following distribution:

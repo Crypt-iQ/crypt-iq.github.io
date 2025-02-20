@@ -54,8 +54,9 @@ Plotting the distribution of win scores from the 100 trials gives the following 
 
 ![alt text](total_wins_hist_unsuccessful_clean.png "Title")
 
-The majority of these peers, however, did not complete the version-verack handshake. Filtering
-these out gives the following kind-of exponential distribution:
+The majority of these peers, however, did not complete the version-verack handshake and therefore
+we did not send the transaction to them. Filtering these out gives the following kind-of exponential
+distribution:
 
 ![alt text](total_wins_hist_cleaned.png "Title")
 

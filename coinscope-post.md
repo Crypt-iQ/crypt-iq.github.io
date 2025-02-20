@@ -38,6 +38,10 @@ than 500 trials with an `M=100`, I chose to do 100 trials with `M=20`.
 - Every test iteration, I also looked to see which conflict transaction mempool.space had. Since I
 tagged the conflict transactions by sequence number `nSequence = <set_idx> + (1 << 31)`, I didn't have
 to compare transaction hashes and could instead note down the `set_idx` from the interval `[0, 19]`.
+I realized later that looking for the transaction on mempool.space allowed me to do two things. 1) it
+let me create a list of influential mempool.space nodes that either were mempool.space nodes or were
+closely connected to them. 2) it let me simultaneously test the success rate of mempool partitioning
+since they were repeatedly getting conflicting transactions from what was mined.
 
 ### Results
 In the 100 tests, Foundry mined 34 of the conflicts, AntPool mined 15, ViaBTC mined 12, MARA

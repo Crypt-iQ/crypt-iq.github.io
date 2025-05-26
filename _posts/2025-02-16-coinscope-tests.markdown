@@ -26,7 +26,7 @@ a spike at around 30 seconds, meaning that ~800 nodes were disconnecting us afte
 graph shows the spike at 30 seconds for nodes that accept >= 125 inbound connections (in addition to
 the peers that they already have):
 
-![alt text](degree-125-time-hist-success-errs.png "Title")
+![alt text](../images/_posts/degree-125-time-hist-success-errs.png "Title")
 
 - Further inspection revealed that the nodes spam INVs, use `/Satoshi:27.0.0/` as the user agent, use
 `SFNodeNetwork|SFNodeBloom|SFNodeNetworkLimited|0x800` as service flags, and don't participate

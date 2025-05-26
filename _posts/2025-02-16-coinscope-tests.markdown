@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Mempool Partitioning and Identifying Mining"
+title:  "Mempool Partitioning and Identifying Mining Nodes"
 date:   2025-02-16 09:34:03 -0500
 categories: jekyll update
 ---

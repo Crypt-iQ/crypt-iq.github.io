@@ -1,5 +1,9 @@
-## Mempool Partitioning and Identifying Mining Nodes
-
+---
+layout: post
+title: "Mempool Partitioning and Identifying Mining Nodes"
+date: 2025-05-26 08:55:00 -0500
+categories: jekyll update
+---
 ### Motivation
 I wanted to see how difficult it would be to practically identify mining nodes (or mining-adjacent)
 nodes on the Bitcoin p2p network in 2025. With the influential set of mining nodes, it becomes

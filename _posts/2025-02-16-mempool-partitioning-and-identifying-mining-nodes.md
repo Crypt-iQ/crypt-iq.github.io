@@ -27,7 +27,7 @@ a spike at around 30 seconds, meaning that ~800 nodes were disconnecting us afte
 graph shows the spike at 30 seconds for nodes that accept >= 125 inbound connections (in addition to
 the peers that they already have):
 
-<img src="/degree-125-time-hist-success-errs.png" alt="" style="max-width:100%;height:auto;" />
+<img src="/degree-125-time-hist-success-errs.png" alt="" style="max-width:60%;height:auto;" />
 
 - Further inspection revealed that the nodes spam INVs, use `/Satoshi:27.0.0/` as the user agent, use
 `SFNodeNetwork|SFNodeBloom|SFNodeNetworkLimited|0x800` as service flags, and don't participate
@@ -57,13 +57,13 @@ mempool.space node(s) was unintentionally partitioned 91% of the time.
 
 Plotting the distribution of win scores from the 100 trials gives the following distribution:
 
-<img src="/total_wins_hist_unsuccessful_clean.png" alt="" style="max-width:100%;height:auto;" />
+<img src="/total_wins_hist_unsuccessful_clean.png" alt="" style="max-width:60%;height:auto;" />
 
 The majority of these peers, however, did not complete the version-verack handshake and therefore
 we did not send the transaction to them. Filtering these out gives the following kind-of exponential
 distribution:
 
-<img src="/total_wins_hist_cleaned.png" alt="" style="max-width:100%;height:auto;" />
+<img src="/total_wins_hist_cleaned.png" alt="" style="max-width:60%;height:auto;" />
 
 From here, the win list needed to be validated to see whether the top nodes were indeed influential
 nodes. To do this, I followed the Influence Validation (IV) algorithm in the paper. In this
@@ -72,7 +72,7 @@ while the rest of the network is given a different conflict transaction. I defin
 set as the top 200 nodes from my sorted win list. The win distribution for the top 200 nodes looks
 like this and is the tail of the original win distribution:
 
-<img src="/top200-win-dist.png" alt="" style="max-width:100%;height:auto;" />
+<img src="/top200-win-dist.png" alt="" style="max-width:60%;height:auto;" />
 
 In 20 trials, the top 200 influential set won 8 times, meaning this set represented about 40% of the
 network's hashrate. I wasn't super satisfied with this 40% win-rate since the paper was able to achieve
@@ -87,7 +87,7 @@ taking the top 25 addresses from each of the 7 miner win lists. The remaining 25
 original win list starting from the top, taking care to ensure no duplicates. The win distribution in
 this list was noticeably different:
 
-<img src="/top-200-miners-win-dist.png" alt="" style="max-width:100%;height:auto;" />
+<img src="/top-200-miners-win-dist.png" alt="" style="max-width:60%;height:auto;" />
 
 In 20 trials, this set performed better with 10 of the blocks containing the influential set's
 conflict transaction. This means that the newer set represents about 50% of the network's hashrate.

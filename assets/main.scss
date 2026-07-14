@@ -3,28 +3,34 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-* { box-sizing: border-box; }
+@import "minima";
+
+/* ---- Overrides: plain black & white, blue links ---- */
+
 html { font-size: 18px; }
 body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  color: #000; background: #fff; line-height: 1.6; margin: 0;
-  -webkit-font-smoothing: antialiased;
+  color: #000;
+  background: #fff;
 }
-.wrapper { max-width: 760px; margin: 0 auto; padding: 0 20px; }
-a { color: #1a0dab; text-decoration: none; }
-a:hover { text-decoration: underline; }
-a:visited { color: #1a0dab; }
-h1,h2,h3,h4,h5,h6 { color:#000; font-weight:600; line-height:1.25; margin:1.6em 0 .6em; letter-spacing:-0.01em; }
-h1 { font-size:1.9rem; } h2 { font-size:1.45rem; } h3 { font-size:1.2rem; }
-hr { border:0; border-top:1px solid #e0e0e0; margin:2rem 0; }
-.site-header { border-top:0; border-bottom:1px solid #e0e0e0; min-height:auto; padding:1.4rem 0; }
-.site-title, .site-title:visited { color:#000 !important; font-size:1.5rem; font-weight:600; }
-.site-nav a { color:#1a0dab; }
-.site-footer { border-top:1px solid #e0e0e0; padding:1.6rem 0; color:#000; }
-.site-footer, .footer-col-wrapper, .footer-heading { color:#000; }
-pre, code { background:#f5f5f5; border:1px solid #e0e0e0; border-radius:3px; font-size:.85em; }
-pre { padding:12px; overflow-x:auto; } code { padding:1px 4px; }
-pre code { border:0; padding:0; background:none; }
-img { max-width:100%; height:auto; }
-.post-meta { color:#666; }
-blockquote { color:#333; border-left:3px solid #e0e0e0; padding-left:1rem; font-style:normal; }
+.wrapper { max-width: 760px; }
+
+a, a:visited { color: #1a0dab; }
+a:hover { color: #1a0dab; text-decoration: underline; }
+
+h1, h2, h3, h4, h5, h6 {
+  color: #000;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.site-header { border-top: 0; border-bottom: 1px solid #e0e0e0; }
+.site-title, .site-title:visited { color: #000; }
+.site-nav a, .site-nav .page-link { color: #1a0dab; }
+
+.site-footer { color: #000; }
+.footer-heading, .footer-col-wrapper { color: #000; }
+
+hr { border: 0; border-top: 1px solid #e0e0e0; }
+
+img { max-width: 100%; height: auto; }

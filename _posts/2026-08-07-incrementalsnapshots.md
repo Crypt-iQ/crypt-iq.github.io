@@ -8,8 +8,9 @@ date: 2026-08-07
 
 As part of my Brink grant, I get to work on fuzzamoto and, more specifically, on something called "incremental snapshots". I won't explain from the ground up what fuzzamoto is so if you want an explainer on that, you should take a look at the brink.dev blog series on fuzzamoto. It is a good read.
 The diagram below roughly explains what happens in fuzzamoto currently when a snapshot restore back to the root snapshot occurs:
-# picture
-After executing the input, the scenario binary invokes the RELEASE hypercall which traps to the kernel module and then execution continues in the part of QEMU-Nyx that handles hypercalls.
+<img src="/root-snapshot.png" alt="" style="max-width:80%;height:auto;display:block;margin:0 auto;" />
+
+After executing the input, the scenario binary invokes the RELEASE hypercall which causes a VM exit to the kernel module and then execution continues in the part of QEMU-Nyx that handles hypercalls.
 Then a single character is written to the shared memory region that the fuzzamoto-libafl process also maps. fuzzamoto-libafl reads this character and knows to provide another input. This input is written to the shared memory region along with a single character to inform QEMU-Nyx that an input is ready.
 QEMU-Nyx reads the character, reads the input and hands it to the scenario binary which executes it. This knowledge will be useful later, so we'll stick a pin in it.
 

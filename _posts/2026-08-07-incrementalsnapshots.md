@@ -49,7 +49,7 @@ These graphs show that the incremental snapshot branch differs from the baseline
 
 The speed gain enough is worth the added code complexity in my opinion, but I still wanted to dig deeper.
 
-After running this benchmark for 5 days and analyzing the results, I realized that the baseline did not include the corpus cache commit. Therefore, it was not a fair benchmark. This was a bit disappointing because I use the machine for my fuzzing campaigns and when I benchmark, nothing else runs on the machine. So, I ran a corpus cache benchmark for 12 hours + 31 cores on fuzzamoto master where I varied the corpus cache size in step sizes from 100 to 100K:
+After running this benchmark for 5 days and analyzing the results, I realized that the baseline did not include the corpus cache commit I mentioned earlier. Therefore, it was not a fair benchmark. This was a bit disappointing because I use the machine for my fuzzing campaigns and when I benchmark, nothing else runs on the machine. So, I ran a corpus cache benchmark for 12 hours + 31 cores on fuzzamoto master where I varied the corpus cache size in step sizes from 100 to 100K:
 
 <img src="/fuzzamoto-corpuscache-bench.png" alt="" style="max-width:80%;height:auto;display:block;margin:0 auto;" />
 

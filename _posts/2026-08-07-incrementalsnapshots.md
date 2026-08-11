@@ -30,7 +30,9 @@ They evaluate three different snapshot placement policies:
 - `aggressive` - place the snapshot at the end of the input. If no inputs are found after 50 iterations, place the snapshot one index prior. Loop back to the end when reaching the smallest index.
 
 The coverage and speed gains varied depending on both placement policy and target. The paper states that the `none` policy gave a 4x speedup (clearly just using snapshots "normally" is useful), the `balanced` policy gave a ~5.8x speedup, and the `aggressive` policy gave a ~11x speedup. So, naturally, I wanted to measure different policies and see if fuzzamoto could be made faster.
+
 After writing the incremental snapshot code for fuzzamoto (with little help from Claude -- it mostly hallucinated), I made two additional semi-related changes. First, I increased the instruction count from 4096 to 40960 since incremental snapshots should give a speedup related to the size of the input. Second, I increased the default corpus cache count from 100 to 5000 since the code had to deal with LibAFL constraints where sometimes inputs would get evicted from the cache. This corpus cache patch turned out to be unnecessary. Another LibAFL quirk was that I could not precisely control the number of mutations per input with a small amount of code, but I may have a way to do this. In short, the mutational "stage" runs 50 times per input in my branch and each stage can randomly perform between 1 and 128 mutations if memory serves.
+
 This first iteration attempted to mimic the `balanced` policy, except after re-reading section 3.4 in the paper, I realize that I made a mistake. After falling back to the root snapshot 4% of the time, instead of choosing a random index in the whole space 50% of the time, it just randomly chose the lower half or the upper half, which is incorrect. I then compared this branch to one part of the master tree but with an added commit to increase the instruction count to 40960. The following graph graphs the two branches over 10 runs each for 12 hours on 31 cores:
 
 <img src="/fuzzamoto-31c-12h-10r-dir-comparison.png" alt="" style="max-width:80%;height:auto;display:block;margin:0 auto;" />
@@ -39,14 +41,15 @@ Averaging the results:
 
 <img src="/incremental-12c-31h-10r-avg.png" alt="" style="max-width:80%;height:auto;display:block;margin:0 auto;" />
 
-These graphs show that the incremental snapshot branch differs from the baseline in all four metrics that I measured:
-- incremental snapshots achieve less coverage: perhaps because more time is spent mutating certain inputs?
-- incremental snapshots has a smaller corpus: this is in line with having less coverage
-- incremental snapshots are clearly faster: this is in line with the paper's findings and what I would expect
-- incremental snapshots are more stable: perhaps because it mutates less inputs and has a smaller corpus?
+These graphs show that the incremental snapshot branch differs from the baseline in all four metrics that I measured. Incremental snapshots:
+- achieve less coverage: perhaps because more time is spent mutating certain inputs?
+- give a smaller corpus: this is in line with having less coverage
+- are clearly faster: this is in line with the paper's findings and what I would expect
+- are more stable: perhaps because it mutates less inputs and has a smaller corpus?
+
 The speed gain enough is worth the added code complexity in my opinion, but I still wanted to dig deeper.
 
-After running this benchmark for 5 days and posting the results, I realized that the baseline did not include the corpus cache commit. Therefore, it was not a fair benchmark. This was a bit disappointing because I use the machine for my fuzzing campaigns and when I benchmark, nothing else runs on the machine. So, I ran a corpus cache benchmark on fuzzamoto master where I varied the corpus cache size in step sizes from 100 to 100K:
+After running this benchmark for 5 days and analyzing the results, I realized that the baseline did not include the corpus cache commit. Therefore, it was not a fair benchmark. This was a bit disappointing because I use the machine for my fuzzing campaigns and when I benchmark, nothing else runs on the machine. So, I ran a corpus cache benchmark for 12 hours + 31 cores on fuzzamoto master where I varied the corpus cache size in step sizes from 100 to 100K:
 
 <img src="/fuzzamoto-corpuscache-bench.png" alt="" style="max-width:80%;height:auto;display:block;margin:0 auto;" />
 

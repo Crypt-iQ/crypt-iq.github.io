@@ -11,7 +11,7 @@ The diagram below roughly explains what currently happens in fuzzamoto when a sn
 <img src="/root-snapshot.png" alt="" style="max-width:80%;height:auto;display:block;margin:0 auto;" />
 
 After executing the input, the scenario binary invokes the `RELEASE` hypercall which causes a VM exit to the kernel module and then execution continues in the part of `QEMU-Nyx` that handles hypercalls.
-Then a single character is written to the shared memory region that the `fuzzamoto-libafl` process also maps. `fuzzamoto-libafl` reads this character and knows to provide another input. This input is written to the shared memory region along with a single character to inform `QEMU-Nyx` that an input is ready.
+Then the `NEXT_PAYLOAD` hypercall is issued and a single character is written to the shared memory region that the `fuzzamoto-libafl` process also maps. `fuzzamoto-libafl` reads this character and knows to provide another input. This input is written to the shared memory region along with a single character to inform `QEMU-Nyx` that an input is ready.
 `QEMU-Nyx` reads the character, reads the input and hands it to the scenario binary which executes it. This knowledge will be useful later, so we'll stick a pin in it.
 
 Incremental snapshots exploit the observation that when fuzzing stateful applications, inputs often share a common prefix (e.g. protocols with handshakes). By taking an extra "incremental" snapshot later in the execution (while we still have the root snapshot available), we can fuzz from this later point and avoid repeatedly executing earlier instructions. After some mutations, we can discard the incremental snapshot and return to the root.

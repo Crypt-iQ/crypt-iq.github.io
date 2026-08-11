@@ -5,6 +5,7 @@ date: 2026-08-07
 ---
 
 As part of my Brink grant, I get to work on fuzzamoto and, more specifically, on something called "incremental snapshots". I won't explain from the ground up what fuzzamoto is so if you want an explainer on that, you should take a look at the brink.dev blog series on fuzzamoto. It is a good read.
+
 The diagram below roughly explains what currently happens in fuzzamoto when a snapshot restore back to the root snapshot occurs (CPU number is arbitrary):
 
 <img src="/root-snapshot.png" alt="" style="max-width:80%;height:auto;display:block;margin:0 auto;" />

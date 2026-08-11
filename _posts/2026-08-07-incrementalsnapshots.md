@@ -23,7 +23,7 @@ This also requests a new input (via the `NEXT_PAYLOAD` hypercall) from `fuzzamot
 
 <img src="/incremental-snapshot.png" alt="" style="max-width:80%;height:auto;display:block;margin:0 auto;" />
 
-If this looks like hieroglyphs to you, you're not alone. I've left out the prt of discarding the incremental snapshot after N tries; basically `fuzzamoto-libafl` sets a discard bit in a config struct that's mapped into shared memory that instructs `QEMU-Nyx` to discard. Quite a bit of the paper is dedicated to finding the best place to insert the snapshot opcode in step 1 of the diagram.
+If this looks like hieroglyphs to you, you're not alone. I've left out the part of discarding the incremental snapshot after N tries; basically `fuzzamoto-libafl` sets a discard bit in a config struct that's mapped into shared memory that instructs `QEMU-Nyx` to discard. Quite a bit of the paper is dedicated to finding the best place to insert the snapshot opcode in step 1 of the diagram.
 They evaluate three different snapshot placement policies:
 - `none` - no incremental snapshots, equivalent to running fuzzamoto master
 - `balanced` - choose the root snapshot 4% of the time, otherwise select a random index in the whole (50%) or only in the latter half (50%)
@@ -33,7 +33,7 @@ The coverage and speed gains varied depending on both placement policy and targe
 
 After writing the incremental snapshot code for fuzzamoto (with little help from Claude -- it mostly hallucinated), I made two additional semi-related changes. First, I increased the instruction count from 4096 to 40960 since incremental snapshots should give a speedup related to the size of the input. Second, I increased the default corpus cache count from 100 to 5000 since the code had to deal with LibAFL constraints where sometimes inputs would get evicted from the cache. This corpus cache patch turned out to be unnecessary. Another LibAFL quirk was that I could not precisely control the number of mutations per input with a small amount of code, but I may have a way to do this. In short, the mutational "stage" runs 50 times per input in my branch and each stage can randomly perform between 1 and 128 mutations if memory serves.
 
-This first iteration attempted to mimic the `balanced` policy, except after re-reading section 3.4 in the paper, I realize that I made a mistake. After falling back to the root snapshot 4% of the time, instead of choosing a random index in the whole space 50% of the time, it just randomly chose the lower half or the upper half, which is incorrect. I then compared this branch to one part of the master tree but with an added commit to increase the instruction count to 40960. The following graph graphs the two branches over 10 runs each for 12 hours on 31 cores:
+This first iteration attempted to mimic the `balanced` policy, except after re-reading section 3.4 in the paper, I realize that I made a mistake. After falling back to the root snapshot 4% of the time, instead of choosing a random index in the whole space 50% of the time, it just randomly chose the lower half or the upper half, which is incorrect. I then compared this branch to one part of the master tree but with an added commit to increase the instruction count to 40960. The following graph shows the two branches over 10 runs each for 12 hours on 31 cores:
 
 <img src="/fuzzamoto-31c-12h-10r-dir-comparison.png" alt="" style="max-width:80%;height:auto;display:block;margin:0 auto;" />
 

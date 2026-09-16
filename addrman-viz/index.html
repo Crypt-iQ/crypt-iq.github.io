@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AddrMan Bucket Map</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f6f5f3;
+  --surface-1: #fcfcfb;
+  --border:    #e2e0db;
+  --border-strong: #cbc8c1;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #7c7a74;
+  --accent: #2a78d6;       /* UI accent (links) */
+  /* The one data ramp: a single blue hue, light -> dark. Used for whichever
+     quantity is selected, so the map only ever speaks in lightness of blue. */
+  --sq-1: #9ec5f4; --sq-2: #6da7ec; --sq-3: #3987e5;
+  --sq-4: #256abf; --sq-5: #184f95; --sq-6: #0d366b;
+  --cell-clean: #cfccc4;   /* occupied, but zero on the selected measure */
+  --cell-empty: #eae8e2;   /* no entries at all */
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --border:    #2e2e2b;
+    --border-strong: #46453f;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #8e8d84;
+    --accent: #3987e5;
+    --sq-1: #1c5cab; --sq-2: #256abf; --sq-3: #3987e5;
+    --sq-4: #5598e7; --sq-5: #86b6ef; --sq-6: #b7d3f6;
+    --cell-clean: #4a4945;
+    --cell-empty: #242421;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font: 14px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -.01em; }
+.sub { color: var(--text-secondary); margin: 0 0 24px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* ---- drop zone ---- */
+#drop {
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-1);
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+#drop:hover, #drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface-1)); }
+#drop h2 { margin: 0 0 6px; font-size: 16px; }
+#drop p { margin: 0; color: var(--text-muted); font-size: 13px; }
+#drop.compact { padding: 14px 18px; text-align: left; display: flex; gap: 12px; align-items: baseline; }
+#drop.compact h2 { font-size: 14px; }
+
+#err {
+  display: none; margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--sq-3) 40%, var(--border));
+  background: color-mix(in srgb, var(--sq-3) 10%, var(--surface-1));
+}
+.note {
+  margin-top: 16px; padding: 12px 14px; border-radius: 10px; font-size: 13px;
+  border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+}
+
+/* ---- stat tiles ---- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 28px 0 8px; }
+.tile {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px;
+}
+.tile .label sub { font-size: 9px; }
+.tile .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.tile .value { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile .foot { font-size: 12px; color: var(--text-secondary); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile.attacker .value { color: var(--sq-4); }
+
+/* ---- controls ---- */
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 20px 0 4px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-1); overflow: hidden; }
+.seg button {
+  font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--text-secondary);
+  padding: 6px 12px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--text-primary); color: var(--surface-1); }
+.spacer { flex: 1; }
+.linkish { font: inherit; font-size: 13px; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 6px 2px; text-decoration: underline; }
+
+/* ---- panels ---- */
+.panels { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-top: 16px; }
+.panel {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px; box-shadow: var(--shadow); flex: 0 1 auto;
+  width: min(100%, calc(var(--cols, 32) * var(--cell, 18px) + 34px));
+}
+.panel h3 { margin: 0; font-size: 14px; letter-spacing: -.01em; }
+.panel .meta { margin: 2px 0 12px; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.grid { display: grid; gap: 2px; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+.cell {
+  width: 100%; aspect-ratio: 1; border-radius: 2px; cursor: crosshair;
+  background: var(--cell-empty);
+}
+.cell:hover { outline: 2px solid var(--text-primary); outline-offset: 1px; }
+
+/* ---- legend ---- */
+.legend { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-top: 14px; font-size: 12px; color: var(--text-secondary); }
+.legend .row { display: flex; align-items: center; gap: 6px; }
+.legend .sw { width: 14px; height: 14px; border-radius: 2px; display: inline-block; border: 1px solid var(--border-strong); }
+.ramp { display: flex; gap: 2px; }
+.ramp span { width: 18px; height: 10px; border-radius: 2px; }
+
+/* ---- tooltip ---- */
+#tip {
+  position: fixed; z-index: 10; pointer-events: none; display: none;
+  background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 10px 12px; font-size: 12.5px; min-width: 190px;
+  font-variant-numeric: tabular-nums;
+}
+#tip .t { font-weight: 600; margin-bottom: 6px; }
+#tip .kv { display: flex; justify-content: space-between; gap: 18px; color: var(--text-secondary); }
+#tip .kv b { color: var(--text-primary); font-weight: 600; }
+#tip .bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin: 8px 0 6px; background: var(--cell-empty); }
+#tip .bar i { display: block; height: 100%; }
+#tip .nets { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); color: var(--text-muted); }
+
+/* ---- table view ---- */
+table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--text-muted); font-weight: 500; font-size: 12px; }
+#tableview { display: none; margin-top: 16px; }
+#tableview .panel { flex: 1 1 320px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AddrMan Bucket Map</h1>
+  <p class="sub">Drop a <span class="mono">peers.dat</span> to see how its new and tried buckets are filled, and how much of each bucket is Bitprojects.</p>
+
+  <div id="drop" tabindex="0" role="button" aria-label="Open a peers.dat file">
+    <h2>Drop <span class="mono">peers.dat</span> here</h2>
+    <p>or click to browse &middot; parsed locally in your browser, nothing is uploaded</p>
+  </div>
+  <input id="file" type="file" accept=".dat" hidden>
+  <div id="err"></div>
+  <div id="out"></div>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script src="addrman.js"></script>
+<script>
+(function () {
+'use strict';
+const $ = (s, r) => (r || document).querySelector(s);
+const drop = $('#drop'), fileInput = $('#file'), errBox = $('#err'), out = $('#out'), tip = $('#tip');
+
+const RAMP = ['--sq-1','--sq-2','--sq-3','--sq-4','--sq-5','--sq-6'];
+let state = null;     // { am, stats: {new, tried} }
+let mode = 'share';   // 'share' | 'occupancy'
+
+/* --------------------------------------------------------------- file I/O */
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) load(e.target.files[0]); });
+['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => e.preventDefault());
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) load(f); });
+
+function load(file) {
+  errBox.style.display = 'none';
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const am = AddrMan.parse(new Uint8Array(fr.result));
+      state = {
+        name: file.name, am,
+        stats: { new: AddrMan.bucketStats(am.newBuckets), tried: AddrMan.bucketStats(am.triedBuckets) },
+      };
+      drop.classList.add('compact');
+      drop.innerHTML = '<h2>' + esc(file.name) + '</h2><p>click to open another file</p>';
+      render();
+    } catch (e) {
+      state = null; out.innerHTML = '';
+      errBox.style.display = 'block';
+      errBox.textContent = 'Could not read this file: ' + e.message;
+    }
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+/* ---------------------------------------------------------------- helpers */
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function pct(n, d) {
+  if (!d) return '—';
+  const v = 100 * n / d;
+  if (n > 0 && v < 0.01) return '<0.01%';
+  return v.toFixed(d > 999 ? 2 : 1) + '%';
+}
+function num(n) { return n.toLocaleString('en-US'); }
+function pct3(x) { return x > 0 && x < 0.00001 ? '<0.001%' : (100 * x).toFixed(3) + '%'; }
+function plural(n, w) { return num(n) + ' ' + w + (n === 1 ? '' : 's'); }
+
+function rampStep(frac) {
+  return 'var(' + RAMP[Math.min(RAMP.length - 1, Math.floor(frac * RAMP.length))] + ')';
+}
+
+function cellColor(b) {
+  if (b.total === 0) return 'var(--cell-empty)';
+  if (mode === 'occupancy') return rampStep(b.total / AddrMan.BUCKET_SIZE);
+  if (b.bitprojects === 0) return 'var(--cell-clean)';
+  return rampStep(b.bitprojects / b.total);
+}
+
+/* ----------------------------------------------------------------- render */
+function render() {
+  const am = state.am;
+  const s = am.counts;
+  const m = AddrMan.metrics(am);
+  const newSlots = AddrMan.countSlots(am.newBuckets).total;
+  const triedSlots = AddrMan.countSlots(am.triedBuckets).total;
+  const newBpBuckets = state.stats.new.filter(b => b.bitprojects > 0).length;
+  const triedBpBuckets = state.stats.tried.filter(b => b.bitprojects > 0).length;
+
+  out.innerHTML = `
+    ${am.warnings.map(w => `<div class="note">${esc(w)}</div>`).join('')}
+    <div class="tiles">
+      <div class="tile">
+        <div class="label">New table</div>
+        <div class="value">${num(s.new)}</div>
+        <div class="foot">${num(newSlots)} slots in ${num(AddrMan.NEW_BUCKET_COUNT)} buckets &middot; ${pct(newSlots, AddrMan.NEW_BUCKET_COUNT * AddrMan.BUCKET_SIZE)} full</div>
+      </div>
+      <div class="tile">
+        <div class="label">Tried table</div>
+        <div class="value">${num(s.tried)}</div>
+        <div class="foot">${num(AddrMan.TRIED_BUCKET_COUNT)} buckets &middot; ${pct(triedSlots, AddrMan.TRIED_BUCKET_COUNT * AddrMan.BUCKET_SIZE)} full</div>
+      </div>
+      <div class="tile attacker">
+        <div class="label">Bitprojects in new</div>
+        <div class="value">${pct(m.new.bpSlots, m.new.slots)}</div>
+        <div class="foot">${num(m.new.bpSlots)} of ${num(m.new.slots)} slots &middot; ${num(m.new.bpAddrs)} of ${num(m.new.addrs)} addresses (${pct(m.new.bpAddrs, m.new.addrs)}) &middot; in ${plural(newBpBuckets, 'bucket')}</div>
+      </div>
+      <div class="tile attacker">
+        <div class="label">Bitprojects in tried</div>
+        <div class="value">${pct(m.tried.bpSlots, m.tried.slots)}</div>
+        <div class="foot">${num(m.tried.bpSlots)} of ${num(m.tried.slots)} slots &middot; in ${plural(triedBpBuckets, 'bucket')}</div>
+      </div>
+    </div>
+
+    <div class="tiles">
+      <div class="tile attacker">
+        <div class="label" title="q = 1/2 f_new + 1/2 f_tried, f as reported in bitcoin/bitcoin#34019">q &middot; flat table share</div>
+        <div class="value">${pct3(m.q)}</div>
+        <div class="foot">f_new ${pct3(m.new.shareGist)} &middot; f_tried ${pct3(m.tried.shareGist)}<br>
+          ${pct3(m.qSlots)} with a slot denominator on both sides</div>
+      </div>
+      <div class="tile attacker">
+        <div class="label" title="Uniform over non-empty buckets, then uniform within the bucket">q<sub>bucket</sub> &middot; bucket-uniform draw</div>
+        <div class="value">${pct3(m.qBucket)}</div>
+        <div class="foot">&frac12;&middot;${pct3(m.new.bucketUniform)} (new) + &frac12;&middot;${pct3(m.tried.bucketUniform)} (tried)</div>
+      </div>
+      <div class="tile">
+        <div class="label">q<sub>bucket</sub> &minus; q</div>
+        <div class="value" style="font-size:22px">${(m.qBucket - m.q >= 0 ? '+' : '') + (100 * (m.qBucket - m.q)).toFixed(3)} pp</div>
+        <div class="foot">bucket-uniform selection puts Bitprojects ${m.qBucket > m.q ? 'higher' : 'lower'} than the flat share here
+          &middot; per table the gap is &minus;cov(entries, share) / mean&nbsp;entries</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Colour cells by">
+        <button type="button" data-mode="share" aria-pressed="${mode === 'share'}">Bitprojects share</button>
+        <button type="button" data-mode="occupancy" aria-pressed="${mode === 'occupancy'}">Occupancy</button>
+      </div>
+      <div class="spacer"></div>
+      <button type="button" class="linkish" id="toggletable">Show numbers</button>
+    </div>
+
+    <div class="panels">
+      ${panel('new', 'New table', AddrMan.NEW_BUCKET_COUNT, 32, 18)}
+      ${panel('tried', 'Tried table', AddrMan.TRIED_BUCKET_COUNT, 16, 18)}
+    </div>
+
+    ${legend()}
+    <div id="tableview" class="panels"></div>
+    <div class="note">
+      ${esc(am.chain)} &middot; addrman format ${am.format} &middot; nKey <span class="mono">${am.nKeyHex.slice(0, 16)}…</span>
+      &middot; a "new" address can sit in up to 8 buckets, so slot counts exceed address counts.
+    </div>`;
+
+  out.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    mode = b.dataset.mode; render();
+  }));
+  $('#toggletable').addEventListener('click', toggleTable);
+  out.querySelectorAll('.grid').forEach(g => {
+    g.addEventListener('mousemove', onHover);
+    g.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
+}
+
+function panel(which, title, count, cols, cellPx) {
+  const stats = state.stats[which];
+  const occupied = stats.filter(b => b.total > 0).length;
+  const cells = stats.map(b =>
+    `<div class="cell" data-t="${which}" data-i="${b.index}" style="background:${cellColor(b)}"></div>`
+  ).join('');
+  return `<div class="panel" style="--cols:${cols};--cell:${cellPx}px">
+    <h3>${title}</h3>
+    <div class="meta">${num(count)} buckets &times; 64 slots &middot; ${num(occupied)} in use</div>
+    <div class="grid">${cells}</div>
+  </div>`;
+}
+
+function legend() {
+  const occ = mode === 'occupancy';
+  const zero = occ ? '' :
+    `<div class="row"><span class="sw" style="background:var(--cell-clean)"></span> no Bitprojects</div>`;
+  return `<div class="legend">
+    <div class="row">${occ ? 'Entries in bucket' : 'Bitprojects share of bucket'}:
+      <span>${occ ? '1' : '&gt;0%'}</span>
+      <span class="ramp">${RAMP.map(v => `<span style="background:var(${v})"></span>`).join('')}</span>
+      <span>${occ ? '64' : '100%'}</span></div>
+    ${zero}
+    <div class="row"><span class="sw" style="background:var(--cell-empty)"></span> empty bucket</div>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------- tooltip */
+function onHover(e) {
+  const cell = e.target.closest('.cell');
+  if (!cell) { tip.style.display = 'none'; return; }
+  const b = state.stats[cell.dataset.t][+cell.dataset.i];
+  const honestPct = b.total ? 100 * b.honest / b.total : 0;
+  const bpPct = b.total ? 100 * b.bitprojects / b.total : 0;
+  const nets = Object.entries(b.nets).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${v}`).join(' &middot; ');
+  tip.innerHTML = `
+    <div class="t">${cell.dataset.t === 'new' ? 'New' : 'Tried'} bucket ${b.index}</div>
+    <div class="kv"><span>Entries</span><b>${b.total} / 64</b></div>
+    ${b.total ? `<div class="bar"><i style="width:${honestPct}%;background:var(--cell-clean)"></i><i style="width:${bpPct}%;background:var(--sq-4)"></i></div>
+    <div class="kv"><span>Bitprojects</span><b>${b.bitprojects} (${bpPct.toFixed(1)}%)</b></div>
+    <div class="kv"><span>Honest</span><b>${b.honest} (${honestPct.toFixed(1)}%)</b></div>
+    ${nets ? `<div class="nets">${nets}</div>` : ''}` : ''}`;
+  tip.style.display = 'block';
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+
+/* ------------------------------------------------------------- table view */
+function toggleTable() {
+  const tv = $('#tableview'), btn = $('#toggletable');
+  if (tv.style.display === 'flex') { tv.style.display = 'none'; btn.textContent = 'Show numbers'; return; }
+  tv.style.display = 'flex';
+  btn.textContent = 'Hide numbers';
+  tv.innerHTML = [['new', 'New table'], ['tried', 'Tried table']].map(([k, title]) => {
+    const stats = state.stats[k];
+    const hist = [0, 0, 0, 0, 0];  // 0% / <10% / 10-25% / 25-50% / >50% Bitprojects
+    let worst = [];
+    for (const b of stats) {
+      if (b.total === 0) continue;
+      const sh = b.bitprojects / b.total;
+      hist[sh === 0 ? 0 : sh < .1 ? 1 : sh < .25 ? 2 : sh < .5 ? 3 : 4]++;
+      if (b.bitprojects) worst.push(b);
+    }
+    worst.sort((a, c) => (c.bitprojects / c.total) - (a.bitprojects / a.total) || c.bitprojects - a.bitprojects);
+    const labels = ['no Bitprojects', 'under 10%', '10–25%', '25–50%', 'over 50%'];
+    const used = stats.filter(b => b.total > 0).length;
+    return `<div class="panel">
+      <h3>${title} — buckets in use, by Bitprojects share</h3>
+      <table><thead><tr><th>Share</th><th>Buckets</th><th>of in-use</th></tr></thead><tbody>
+      ${hist.map((n, i) => `<tr><td>${labels[i]}</td><td>${num(n)}</td><td>${pct(n, used)}</td></tr>`).join('')}
+      </tbody></table>
+      <h3 style="margin-top:18px">Most Bitprojects-heavy buckets</h3>
+      <table><thead><tr><th>Bucket</th><th>Bitprojects</th><th>Entries</th><th>Share</th></tr></thead><tbody>
+      ${worst.slice(0, 10).map(b => `<tr><td>#${b.index}</td><td>${b.bitprojects}</td><td>${b.total}</td><td>${pct(b.bitprojects, b.total)}</td></tr>`).join('')
+        || '<tr><td colspan="4">none</td></tr>'}
+      </tbody></table>
+    </div>`;
+  }).join('');
+}
+})();
+</script>
+</body>
+</html>

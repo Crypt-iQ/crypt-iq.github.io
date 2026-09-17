@@ -15,12 +15,16 @@
   --text-secondary: #52514e;
   --text-muted:     #7c7a74;
   --accent: #2a78d6;       /* UI accent (links) */
-  /* The one data ramp: a single blue hue, light -> dark. Used for whichever
-     quantity is selected, so the map only ever speaks in lightness of blue. */
-  --sq-1: #9ec5f4; --sq-2: #6da7ec; --sq-3: #3987e5;
-  --sq-4: #256abf; --sq-5: #184f95; --sq-6: #0d366b;
-  --cell-clean: #cfccc4;   /* occupied, but zero on the selected measure */
-  --cell-empty: #eae8e2;   /* no entries at all */
+  /* Buckets are drawn as fill gauges, not a colour ramp: one blue for the
+     filled part, a mid neutral for the unfilled part of a bucket that has
+     entries, and a lighter neutral for a bucket with no entries at all. */
+  --fill:       #2a78d6;
+  /* solid-fill ramp for the draw-weight view */
+  --w1: #cde2fb; --w2: #9ec5f4; --w3: #6da7ec; --w4: #3987e5; --w5: #256abf; --w6: #0d366b;
+  --fill-soft:  #6da7ec;   /* legend / tooltip accents */
+  --sq-4:       #256abf;   /* stat-tile numbers */
+  --cell-clean: #cfccc4;   /* unfilled part of a non-empty bucket */
+  --cell-empty: #eae8e2;   /* bucket with no entries */
   --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
 }
 @media (prefers-color-scheme: dark) {
@@ -34,8 +38,10 @@
     --text-secondary: #c3c2b7;
     --text-muted:     #8e8d84;
     --accent: #3987e5;
-    --sq-1: #1c5cab; --sq-2: #256abf; --sq-3: #3987e5;
-    --sq-4: #5598e7; --sq-5: #86b6ef; --sq-6: #b7d3f6;
+    --fill:       #3987e5;
+    --w1: #123a66; --w2: #1c5cab; --w3: #256abf; --w4: #3987e5; --w5: #6da7ec; --w6: #b7d3f6;
+    --fill-soft:  #5598e7;
+    --sq-4:       #5598e7;
     --cell-clean: #4a4945;
     --cell-empty: #242421;
     --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
@@ -111,20 +117,30 @@ h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -.01em; }
   width: min(100%, calc(var(--cols, 32) * var(--cell, 18px) + 34px));
 }
 .panel h3 { margin: 0; font-size: 14px; letter-spacing: -.01em; }
+.panel .wstat { margin: 8px 0 12px; font-size: 12.5px; color: var(--text-secondary);
+  border-left: 2px solid var(--fill); padding-left: 10px; }
+.panel .wstat b { color: var(--text-primary); }
 .panel .meta { margin: 2px 0 12px; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .grid { display: grid; gap: 2px; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
 .cell {
-  width: 100%; aspect-ratio: 1; border-radius: 2px; cursor: crosshair;
-  background: var(--cell-empty);
+  position: relative; width: 100%; aspect-ratio: 1; border-radius: 2px;
+  cursor: crosshair; overflow: hidden; background: var(--cell-empty);
 }
-.cell:hover { outline: 2px solid var(--text-primary); outline-offset: 1px; }
+.cell u { position: absolute; left: 0; right: 0; bottom: 0; background: var(--cell-clean); }
+.cell i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--fill); min-height: 1px; }
+.cell:hover { outline: 2px solid var(--text-primary); outline-offset: 1px; z-index: 1; }
+.swatch { width: 15px; height: 15px; border-radius: 2px; display: inline-block; position: relative;
+  overflow: hidden; background: var(--cell-empty); vertical-align: -3px; }
+.swatch u { position: absolute; left: 0; right: 0; bottom: 0; background: var(--cell-clean); }
+.swatch i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--fill); }
 
 /* ---- legend ---- */
 .legend { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-top: 14px; font-size: 12px; color: var(--text-secondary); }
 .legend .row { display: flex; align-items: center; gap: 6px; }
+.legend .txt { display: block; flex-basis: 100%; }
 .legend .sw { width: 14px; height: 14px; border-radius: 2px; display: inline-block; border: 1px solid var(--border-strong); }
 .ramp { display: flex; gap: 2px; }
-.ramp span { width: 18px; height: 10px; border-radius: 2px; }
+.ramp { gap: 3px; align-items: center; }
 
 /* ---- tooltip ---- */
 #tip {
@@ -171,9 +187,36 @@ th { color: var(--text-muted); font-weight: 500; font-size: 12px; }
 const $ = (s, r) => (r || document).querySelector(s);
 const drop = $('#drop'), fileInput = $('#file'), errBox = $('#err'), out = $('#out'), tip = $('#tip');
 
-const RAMP = ['--sq-1','--sq-2','--sq-3','--sq-4','--sq-5','--sq-6'];
-let state = null;     // { am, stats: {new, tried} }
-let mode = 'share';   // 'share' | 'occupancy'
+// Every bucket is drawn as one gauge on a shared 0..64 scale: a grey bar for the
+// entries it holds (n_b) and a blue bar for the Bitprojects among them (a_b).
+// The blue-to-grey ratio is the bucket's share, and how short the grey bar is
+// shows how sparse the bucket is - which is what makes its entries more likely
+// to be drawn under bucket-uniform selection.
+// An entry in bucket b is drawn 1/(|B_T| n_b) of the time, against 1/S_T under an
+// entry-uniform draw. The ratio is meanN / n_b - it depends only on how sparse the
+// bucket is, never on how many Bitprojects are in it.
+const WEIGHT_STEPS = [
+  { max: 0.5,      v: '--w1', label: 'under \u00d70.5' },
+  { max: 0.8,      v: '--w2', label: '\u00d70.5\u2013 0.8' },
+  { max: 1.25,     v: '--w3', label: '\u00d70.8\u2013 1.25 (about fair)' },
+  { max: 2,        v: '--w4', label: '\u00d71.25\u2013 2' },
+  { max: 4,        v: '--w5', label: '\u00d72\u2013 4' },
+  { max: Infinity, v: '--w6', label: 'over \u00d74' },
+];
+const weightStep = lift => WEIGHT_STEPS.find(s => lift < s.max);
+
+const VIEWS = { contents: 'Bucket contents', weight: 'Draw weight' };
+
+const SORTS = {
+  share:     { label: 'Bitprojects share', key: b => (b.total ? b.bitprojects / b.total : -1) },
+  count:     { label: 'Bitprojects count', key: b => b.bitprojects },
+  occupancy: { label: 'Occupancy',         key: b => b.total },
+  weight:    { label: 'Draw weight',       key: b => (b.total ? 1 / b.total : -1) },
+  index:     { label: 'Bucket index',      key: null },
+};
+let state = null;      // { am, stats: {new, tried} }
+let sortBy = 'share';  // key into SORTS
+let view = 'contents'; // key into VIEWS
 
 /* --------------------------------------------------------------- file I/O */
 drop.addEventListener('click', () => fileInput.click());
@@ -194,6 +237,7 @@ function load(file) {
       state = {
         name: file.name, am,
         stats: { new: AddrMan.bucketStats(am.newBuckets), tried: AddrMan.bucketStats(am.triedBuckets) },
+        metrics: AddrMan.metrics(am),
       };
       drop.classList.add('compact');
       drop.innerHTML = '<h2>' + esc(file.name) + '</h2><p>click to open another file</p>';
@@ -219,15 +263,12 @@ function num(n) { return n.toLocaleString('en-US'); }
 function pct3(x) { return x > 0 && x < 0.00001 ? '<0.001%' : (100 * x).toFixed(3) + '%'; }
 function plural(n, w) { return num(n) + ' ' + w + (n === 1 ? '' : 's'); }
 
-function rampStep(frac) {
-  return 'var(' + RAMP[Math.min(RAMP.length - 1, Math.floor(frac * RAMP.length))] + ')';
-}
-
-function cellColor(b) {
-  if (b.total === 0) return 'var(--cell-empty)';
-  if (mode === 'occupancy') return rampStep(b.total / AddrMan.BUCKET_SIZE);
-  if (b.bitprojects === 0) return 'var(--cell-clean)';
-  return rampStep(b.bitprojects / b.total);
+// Grid order. Bucket indices have no spatial meaning, so sorting loses nothing
+// and puts the buckets worth looking at in the top-left.
+function ordered(stats) {
+  const k = SORTS[sortBy].key;
+  if (!k) return stats;
+  return stats.slice().sort((a, b) => k(b) - k(a) || a.index - b.index);
 }
 
 /* ----------------------------------------------------------------- render */
@@ -235,6 +276,8 @@ function render() {
   const am = state.am;
   const s = am.counts;
   const m = AddrMan.metrics(am);
+  // mu_T / (P_T/S_T): the mean draw weight of this table's Bitprojects entries.
+  const bpLift = t => m[t].shareSlots ? m[t].bucketUniform / m[t].shareSlots : 1;
   const newSlots = AddrMan.countSlots(am.newBuckets).total;
   const triedSlots = AddrMan.countSlots(am.triedBuckets).total;
   const newBpBuckets = state.stats.new.filter(b => b.bitprojects > 0).length;
@@ -277,18 +320,24 @@ function render() {
         <div class="value">${pct3(m.qBucket)}</div>
         <div class="foot">&frac12;&middot;${pct3(m.new.bucketUniform)} (new) + &frac12;&middot;${pct3(m.tried.bucketUniform)} (tried)</div>
       </div>
-      <div class="tile">
-        <div class="label">q<sub>bucket</sub> &minus; q</div>
-        <div class="value" style="font-size:22px">${(m.qBucket - m.q >= 0 ? '+' : '') + (100 * (m.qBucket - m.q)).toFixed(3)} pp</div>
-        <div class="foot">bucket-uniform selection puts Bitprojects ${m.qBucket > m.q ? 'higher' : 'lower'} than the flat share here
-          &middot; per table the gap is &minus;cov(entries, share) / mean&nbsp;entries</div>
+      <div class="tile attacker">
+        <div class="label">Bitprojects draw weight</div>
+        <div class="value" style="font-size:22px">new &times;${bpLift('new').toFixed(2)} &middot; tried &times;${bpLift('tried').toFixed(2)}</div>
+        <div class="foot">how often a Bitprojects entry is drawn under bucket-uniform selection versus an
+          entry-uniform draw &mdash; above 1 means they sit in sparser-than-average buckets
+          &middot; q<sub>bucket</sub> &minus; q = ${(m.qBucket - m.q >= 0 ? '+' : '') + (100 * (m.qBucket - m.q)).toFixed(3)} pp</div>
       </div>
     </div>
 
     <div class="controls">
-      <div class="seg" role="group" aria-label="Colour cells by">
-        <button type="button" data-mode="share" aria-pressed="${mode === 'share'}">Bitprojects share</button>
-        <button type="button" data-mode="occupancy" aria-pressed="${mode === 'occupancy'}">Occupancy</button>
+      <div class="seg" role="group" aria-label="View">
+        ${Object.entries(VIEWS).map(([k, v]) =>
+          `<button type="button" data-view="${k}" aria-pressed="${view === k}">${v}</button>`).join('')}
+      </div>
+      <span style="font-size:13px;color:var(--text-muted)">Sort by</span>
+      <div class="seg" role="group" aria-label="Sort buckets by">
+        ${Object.entries(SORTS).map(([k, v]) =>
+          `<button type="button" data-sort="${k}" aria-pressed="${sortBy === k}">${v.label}</button>`).join('')}
       </div>
       <div class="spacer"></div>
       <button type="button" class="linkish" id="toggletable">Show numbers</button>
@@ -307,7 +356,8 @@ function render() {
     </div>`;
 
   out.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
-    mode = b.dataset.mode; render();
+    if (b.dataset.view) view = b.dataset.view; else sortBy = b.dataset.sort;
+    render();
   }));
   $('#toggletable').addEventListener('click', toggleTable);
   out.querySelectorAll('.grid').forEach(g => {
@@ -316,30 +366,77 @@ function render() {
   });
 }
 
+// Under bucket-uniform selection each non-empty bucket takes the same 1/|B_T| of
+// the draws, so a bucket's draw share is fixed while its entry share is not.
+// Buckets below mean occupancy are therefore over-weighted as a group.
+function weightStat(which) {
+  const m = state.metrics[which];
+  const ne = state.stats[which].filter(b => b.total > 0);
+  const sparse = ne.filter(b => b.total < m.meanN);
+  if (!sparse.length) return 'every bucket in use is at or above mean occupancy';
+  const drawShare = sparse.length / ne.length;
+  const entryShare = sparse.reduce((a, b) => a + b.total, 0) / m.slots;
+  const lift = entryShare ? drawShare / entryShare : 0;
+  // Mean draw weight of the Bitprojects entries in this table. It works out to
+  // mu_T / (P_T/S_T) exactly, i.e. how much bucket-uniform selection favours or
+  // penalises them against an entry-uniform draw.
+  const bpLift = m.shareSlots ? m.bucketUniform / m.shareSlots : 0;
+  const verdict = bpLift > 1.02 ? 'over-weighted' : bpLift < 0.98 ? 'under-weighted' : 'about neutral';
+  return `mean occupancy ${m.meanN.toFixed(1)} of 64 &middot; `
+    + `${num(sparse.length)} buckets are below it: ${pct(sparse.length, ne.length)} of the draws `
+    + `for ${(100 * entryShare).toFixed(1)}% of the entries &middot; <b>&times;${lift.toFixed(2)}</b>`
+    + `<br>Bitprojects entries here are drawn <b>&times;${bpLift.toFixed(2)}</b> versus an entry-uniform `
+    + `draw &mdash; ${verdict}`;
+}
+
 function panel(which, title, count, cols, cellPx) {
   const stats = state.stats[which];
   const occupied = stats.filter(b => b.total > 0).length;
-  const cells = stats.map(b =>
-    `<div class="cell" data-t="${which}" data-i="${b.index}" style="background:${cellColor(b)}"></div>`
-  ).join('');
+  const S = AddrMan.BUCKET_SIZE, meanN = state.metrics[which].meanN;
+  const cells = ordered(stats).map(b => {
+    const tag = `data-t="${which}" data-i="${b.index}"`;
+    if (!b.total) return `<div class="cell" ${tag}></div>`;
+    if (view === 'weight') {
+      return `<div class="cell" ${tag} style="background:var(${weightStep(meanN / b.total).v})"></div>`;
+    }
+    const grey = `<u style="height:${(100 * b.total / S).toFixed(2)}%"></u>`;
+    const blue = b.bitprojects ? `<i style="height:${(100 * b.bitprojects / S).toFixed(2)}%"></i>` : '';
+    return `<div class="cell" ${tag}>${grey}${blue}</div>`;
+  }).join('');
   return `<div class="panel" style="--cols:${cols};--cell:${cellPx}px">
     <h3>${title}</h3>
     <div class="meta">${num(count)} buckets &times; 64 slots &middot; ${num(occupied)} in use</div>
+    ${view === 'weight' ? `<div class="wstat">${weightStat(which)}</div>` : ''}
     <div class="grid">${cells}</div>
   </div>`;
 }
 
 function legend() {
-  const occ = mode === 'occupancy';
-  const zero = occ ? '' :
-    `<div class="row"><span class="sw" style="background:var(--cell-clean)"></span> no Bitprojects</div>`;
+  const tail = SORTS[sortBy].key
+    ? 'sorted by ' + SORTS[sortBy].label.toLowerCase() + ', highest first &mdash; hover for the real bucket number'
+    : 'in bucket-index order';
+  if (view === 'weight') {
+    return `<div class="legend">
+      <div class="row txt">Cell colour = how often an entry in that bucket is drawn, against an
+        entry-uniform draw. The factor is n&#772;/n<sub>b</sub>, so it depends only on how sparse the
+        bucket is &mdash; not on its Bitprojects share.</div>
+      ${WEIGHT_STEPS.map(st => `<div class="row"><span class="sw" style="background:var(${st.v})"></span> ${st.label}</div>`).join('')}
+      <div class="row"><span class="sw" style="background:var(--cell-empty)"></span> empty bucket</div>
+      <div class="row txt">${tail}</div>
+    </div>`;
+  }
+  const cell = (u, i) => `<span class="swatch">${u ? `<u style="height:${u}%"></u>` : ''}`
+    + `${i ? `<i style="height:${i}%"></i>` : ''}</span>`;
   return `<div class="legend">
-    <div class="row">${occ ? 'Entries in bucket' : 'Bitprojects share of bucket'}:
-      <span>${occ ? '1' : '&gt;0%'}</span>
-      <span class="ramp">${RAMP.map(v => `<span style="background:var(${v})"></span>`).join('')}</span>
-      <span>${occ ? '64' : '100%'}</span></div>
-    ${zero}
-    <div class="row"><span class="sw" style="background:var(--cell-empty)"></span> empty bucket</div>
+    <div class="row txt">Each square is one bucket, full height = its 64 slots:</div>
+    <div class="row">${cell(0, 0)} empty</div>
+    <div class="row">${cell(100, 0)} full, no Bitprojects</div>
+    <div class="row">${cell(40, 0)} 40% full</div>
+    <div class="row">${cell(40, 20)} 40% full, half of it Bitprojects</div>
+    <div class="row">${cell(100, 50)} full, half Bitprojects</div>
+    <div class="row txt">
+      grey = entries (n<sub>b</sub>) &middot; blue = Bitprojects among them (a<sub>b</sub>) &middot; ${tail}
+    </div>
   </div>`;
 }
 
@@ -351,12 +448,17 @@ function onHover(e) {
   const honestPct = b.total ? 100 * b.honest / b.total : 0;
   const bpPct = b.total ? 100 * b.bitprojects / b.total : 0;
   const nets = Object.entries(b.nets).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${v}`).join(' &middot; ');
+  // Selection weight of any entry in this bucket, relative to an entry-uniform draw.
+  const meanN = state.metrics[cell.dataset.t].meanN;
+  const lift = b.total ? meanN / b.total : 0;
   tip.innerHTML = `
     <div class="t">${cell.dataset.t === 'new' ? 'New' : 'Tried'} bucket ${b.index}</div>
     <div class="kv"><span>Entries</span><b>${b.total} / 64</b></div>
-    ${b.total ? `<div class="bar"><i style="width:${honestPct}%;background:var(--cell-clean)"></i><i style="width:${bpPct}%;background:var(--sq-4)"></i></div>
+    ${b.total ? `<div class="bar"><i style="width:${honestPct}%;background:var(--cell-clean)"></i><i style="width:${bpPct}%;background:var(--fill)"></i></div>
     <div class="kv"><span>Bitprojects</span><b>${b.bitprojects} (${bpPct.toFixed(1)}%)</b></div>
     <div class="kv"><span>Honest</span><b>${b.honest} (${honestPct.toFixed(1)}%)</b></div>
+    <div class="kv" title="mean occupancy / this bucket's entries"><span>Draw weight</span><b>&times;${lift.toFixed(2)}${lift >= 1 ? ' \u2191' : ' \u2193'}</b></div>
+    <div class="kv"><span>vs mean occupancy</span><b>${b.total} / ${meanN.toFixed(1)}</b></div>
     ${nets ? `<div class="nets">${nets}</div>` : ''}` : ''}`;
   tip.style.display = 'block';
   const r = tip.getBoundingClientRect();
